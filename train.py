@@ -22,6 +22,9 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
+import numpy as np
+from sklearn.metrics import confusion_matrix, classification_report
+from focal_loss.focal_loss import FocalLoss
 
 import torch
 import torch.nn as nn
@@ -514,14 +517,8 @@ def main():
         if utils.is_primary(args):
             _logger.info('Using NVIDIA APEX AMP. Training in mixed precision.')
     elif use_amp == 'native':
-        try:
-            amp_autocast = partial(torch.autocast, device_type=device.type, dtype=amp_dtype)
-        except (AttributeError, TypeError):
-            # fallback to CUDA only AMP for PyTorch < 1.10
-            assert device.type == 'cuda'
-            amp_autocast = torch.cuda.amp.autocast
-        if device.type == 'cuda' and amp_dtype == torch.float16:
-            # loss scaler only used for float16 (half) dtype, bfloat16 does not need it
+        amp_autocast = partial(torch.autocast, device_type=device.type, dtype=amp_dtype)
+        if device.type == 'cuda':
             loss_scaler = NativeScaler()
         if utils.is_primary(args):
             _logger.info('Using native Torch AMP. Training in mixed precision.')
@@ -579,13 +576,16 @@ def main():
 
     dataset_eval = create_dataset(
         args.dataset,
-        root=args.data_dir,
+        root='/content/property classf data/val',
         split=args.val_split,
         is_training=False,
         class_map=args.class_map,
         download=args.dataset_download,
         batch_size=args.batch_size,
     )
+
+    # print(len(dataset_train), len(dataset_eval))
+    # exit()
 
     # setup mixup / cutmix
     collate_fn = None
@@ -684,8 +684,10 @@ def main():
             train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
         train_loss_fn = nn.CrossEntropyLoss()
+    weights = torch.FloatTensor([0.545982905982906, 1.2322530864197532, 2.8017543859649123]).to(device)
+    train_loss_fn = FocalLoss(gamma=0.7, weights=weights)
     train_loss_fn = train_loss_fn.to(device=device)
-    validate_loss_fn = nn.CrossEntropyLoss().to(device=device)
+    validate_loss_fn = FocalLoss(gamma=0.7, weights=weights).to(device=device)
 
     # setup checkpoint saver and eval metric tracking
     eval_metric = args.eval_metric
@@ -860,6 +862,10 @@ def train_one_epoch(
     num_batches_per_epoch = len(loader)
     last_idx = num_batches_per_epoch - 1
     num_updates = epoch * num_batches_per_epoch
+    conf_mat = [[0,0,0],[0,0,0],[0,0,0]]
+    y_true_all = []
+    y_pred_all = []
+
     for batch_idx, (input, target) in enumerate(loader):
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
@@ -872,7 +878,23 @@ def train_one_epoch(
 
         with amp_autocast():
             output = model(input)
-            loss = loss_fn(output, target)
+            y_pred = np.argmax(output.detach().cpu(),axis=1)
+            y_true = target.detach().cpu()
+            y_true_all+=list(y_true)
+            y_pred_all+=list(y_pred)
+
+            
+
+            conf_mat+=confusion_matrix(y_pred, y_true, labels=[0,1,2])
+            m = torch.nn.Softmax(dim=-1)
+            try:
+                loss = loss_fn(m(output), target)
+            except Exception as e: 
+                print('\n',e,'\n')
+                print('-'*50)
+                print(m(output))
+                print(target)
+                print('-'*50)
 
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
@@ -912,12 +934,14 @@ def train_one_epoch(
                 losses_m.update(reduced_loss.item(), input.size(0))
 
             if utils.is_primary(args):
+                print(classification_report(y_true_all, y_pred_all, labels=[0,1,2]))
                 _logger.info(
                     'Train: {} [{:>4d}/{} ({:>3.0f}%)]  '
                     'Loss: {loss.val:#.4g} ({loss.avg:#.3g})  '
                     'Time: {batch_time.val:.3f}s, {rate:>7.2f}/s  '
                     '({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  '
                     'LR: {lr:.3e}  '
+                    '\nConf Mat:\n {conf_mat}\n'
                     'Data: {data_time.val:.3f} ({data_time.avg:.3f})'.format(
                         epoch,
                         batch_idx, len(loader),
@@ -927,6 +951,7 @@ def train_one_epoch(
                         rate=input.size(0) * args.world_size / batch_time_m.val,
                         rate_avg=input.size(0) * args.world_size / batch_time_m.avg,
                         lr=lr,
+                        conf_mat=conf_mat,
                         data_time=data_time_m)
                 )
 
@@ -969,7 +994,9 @@ def validate(
     top5_m = utils.AverageMeter()
 
     model.eval()
-
+    conf_mat = [[0,0,0],[0,0,0],[0,0,0]]
+    y_true_all = []
+    y_pred_all = []
     end = time.time()
     last_idx = len(loader) - 1
     with torch.no_grad():
@@ -983,6 +1010,13 @@ def validate(
 
             with amp_autocast():
                 output = model(input)
+                y_pred = np.argmax(output.cpu(),axis=1)
+                y_true = target.cpu()
+                y_true_all+=list(y_true)
+                y_pred_all+=list(y_pred)
+
+                
+                conf_mat+=confusion_matrix(y_pred, y_true, labels=[0,1,2])
                 if isinstance(output, (tuple, list)):
                     output = output[0]
 
@@ -992,7 +1026,15 @@ def validate(
                     output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
                     target = target[0:target.size(0):reduce_factor]
 
-                loss = loss_fn(output, target)
+                m = torch.nn.Softmax(dim=-1)
+                try:
+                    loss = loss_fn(m(output), target)
+                except Exception as e: 
+                    print('\n',e,'\n')
+                    print('-'*50)
+                    print(m(output))
+                    print(target)
+                    print('-'*50)
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
 
             if args.distributed:
@@ -1013,15 +1055,18 @@ def validate(
             end = time.time()
             if utils.is_primary(args) and (last_batch or batch_idx % args.log_interval == 0):
                 log_name = 'Test' + log_suffix
+                print(classification_report(y_true_all, y_pred_all, labels=[0,1,2]))
                 _logger.info(
                     '{0}: [{1:>4d}/{2}]  '
                     'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})  '
                     'Loss: {loss.val:>7.4f} ({loss.avg:>6.4f})  '
+                    '\nConf Mat:\n {conf_mat}\n'
                     'Acc@1: {top1.val:>7.4f} ({top1.avg:>7.4f})  '
                     'Acc@5: {top5.val:>7.4f} ({top5.avg:>7.4f})'.format(
                         log_name, batch_idx, last_idx,
                         batch_time=batch_time_m,
                         loss=losses_m,
+                        conf_mat=conf_mat,
                         top1=top1_m,
                         top5=top5_m)
                 )
