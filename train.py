@@ -685,9 +685,12 @@ def main():
     else:
         train_loss_fn = nn.CrossEntropyLoss()
     weights = torch.FloatTensor([0.545982905982906, 1.2322530864197532, 2.8017543859649123]).to(device)
-    train_loss_fn = FocalLoss(gamma=0.7, weights=weights)
+    train_loss_fn = nn.CrossEntropyLoss(weights=weights)
     train_loss_fn = train_loss_fn.to(device=device)
-    validate_loss_fn = FocalLoss(gamma=0.7, weights=weights).to(device=device)
+    validate_loss_fn = nn.CrossEntropyLoss(weights=weights).to(device=device)
+    # train_loss_fn = FocalLoss(gamma=0.7, weights=weights)
+    # train_loss_fn = train_loss_fn.to(device=device)
+    # validate_loss_fn = FocalLoss(gamma=0.7, weights=weights).to(device=device)
 
     # setup checkpoint saver and eval metric tracking
     eval_metric = args.eval_metric
@@ -886,16 +889,17 @@ def train_one_epoch(
             
 
             conf_mat+=confusion_matrix(y_pred, y_true, labels=[0,1,2])
-            m = torch.nn.Softmax(dim=-1)
-            try:
-                loss = loss_fn(m(output), target)
-            except Exception as e: 
-                print('\n',e,'\n')
-                print('-'*50)
-                print(m(output))
-                print(target)
-                print('-'*50)
-
+            # m = torch.nn.Softmax(dim=-1)
+            # try:
+            #     loss = loss_fn(m(output), target)
+            # except Exception as e: 
+            #     print('\n',e,'\n')
+            #     print('-'*50)
+            #     print(output)
+            #     print(m(output))
+            #     print(target)
+            #     print('-'*50)
+            loss = loss_fn(output, target)
         if not args.distributed:
             losses_m.update(loss.item(), input.size(0))
 
