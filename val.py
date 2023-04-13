@@ -244,8 +244,8 @@ def validate(args):
         model = torch.nn.DataParallel(model, device_ids=list(range(args.num_gpu)))
 
     weights = torch.FloatTensor([0.5463431075160095, 1.3474646716541978, 2.339105339105339]).to(device)
-    criterion = FocalLoss(gamma=0.7, weights=weights).to(device)
-    # criterion = nn.CrossEntropyLoss().to(device)
+#     criterion = FocalLoss(gamma=0.7, weights=weights).to(device)
+    criterion = nn.CrossEntropyLoss(weight=weights).to(device)
 
     root_dir = args.data or args.data_dir
     dataset = create_dataset(
