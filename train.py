@@ -687,7 +687,7 @@ def main():
     weights = torch.FloatTensor([0.545982905982906, 1.2322530864197532, 2.8017543859649123]).to(device)
     train_loss_fn = nn.CrossEntropyLoss(weights=weights)
     train_loss_fn = train_loss_fn.to(device=device)
-    validate_loss_fn = nn.CrossEntropyLoss(weights=weights).to(device=device)
+    validate_loss_fn = nn.CrossEntropyLoss(weight=weights).to(device=device)
     # train_loss_fn = FocalLoss(gamma=0.7, weights=weights)
     # train_loss_fn = train_loss_fn.to(device=device)
     # validate_loss_fn = FocalLoss(gamma=0.7, weights=weights).to(device=device)
