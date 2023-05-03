@@ -576,7 +576,7 @@ def main():
 
     dataset_eval = create_dataset(
         args.dataset,
-        root='/content/property classf data/val',
+        root='/content/val',
         split=args.val_split,
         is_training=False,
         class_map=args.class_map,
@@ -684,7 +684,7 @@ def main():
             train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
         train_loss_fn = nn.CrossEntropyLoss()
-    weights = torch.FloatTensor([0.545982905982906, 1.2322530864197532, 2.8017543859649123]).to(device)
+    weights = torch.FloatTensor([0.5796078431372549, 1.2174629324546953, 2.2059701492537314]).to(device)
     train_loss_fn = nn.CrossEntropyLoss(weight=weights)
     train_loss_fn = train_loss_fn.to(device=device)
     validate_loss_fn = nn.CrossEntropyLoss(weight=weights).to(device=device)
