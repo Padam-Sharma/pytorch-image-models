@@ -32,6 +32,7 @@ from timm.utils import accuracy, AverageMeter, natural_key, setup_default_loggin
 
 try:
     from apex import amp
+
     has_apex = True
 except ImportError:
     has_apex = False
@@ -45,6 +46,7 @@ except AttributeError:
 
 try:
     from functorch.compile import memory_efficient_fusion
+
     has_functorch = True
 except ImportError as e:
     has_functorch = False
@@ -52,7 +54,6 @@ except ImportError as e:
 has_compile = hasattr(torch, 'compile')
 
 _logger = logging.getLogger('validate')
-
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Validation')
 parser.add_argument('data', nargs='?', metavar='DIR', const=None,
@@ -76,7 +77,8 @@ parser.add_argument('--img-size', default=None, type=int,
 parser.add_argument('--in-chans', type=int, default=None, metavar='N',
                     help='Image input channels (default: None => 3)')
 parser.add_argument('--input-size', default=None, nargs=3, type=int,
-                    metavar='N N N', help='Input all image dimensions (d h w, e.g. --input-size 3 224 224), uses model default if empty')
+                    metavar='N N N',
+                    help='Input all image dimensions (d h w, e.g. --input-size 3 224 224), uses model default if empty')
 parser.add_argument('--use-train-size', action='store_true', default=False,
                     help='force use of train input size, even when test size is specified in pretrained cfg')
 parser.add_argument('--crop-pct', default=None, type=float,
@@ -85,7 +87,7 @@ parser.add_argument('--crop-mode', default=None, type=str,
                     metavar='N', help='Input image crop mode (squash, border, center). Model default if None.')
 parser.add_argument('--mean', type=float, nargs='+', default=None, metavar='MEAN',
                     help='Override mean pixel value of dataset')
-parser.add_argument('--std', type=float,  nargs='+', default=None, metavar='STD',
+parser.add_argument('--std', type=float, nargs='+', default=None, metavar='STD',
                     help='Override std deviation of of dataset')
 parser.add_argument('--interpolation', default='', type=str, metavar='NAME',
                     help='Image resize interpolation type (overrides model)')
@@ -128,7 +130,6 @@ parser.add_argument('--fuser', default='', type=str,
 parser.add_argument('--fast-norm', default=False, action='store_true',
                     help='enable experimental fast-norm')
 parser.add_argument('--model-kwargs', nargs='*', default={}, action=ParseKwargs)
-
 
 scripting_group = parser.add_mutually_exclusive_group()
 scripting_group.add_argument('--torchscript', default=False, action='store_true',
@@ -244,7 +245,7 @@ def validate(args):
         model = torch.nn.DataParallel(model, device_ids=list(range(args.num_gpu)))
 
     weights = torch.FloatTensor([0.5463431075160095, 1.3474646716541978, 2.339105339105339]).to(device)
-#     criterion = FocalLoss(gamma=0.7, weights=weights).to(device)
+    #     criterion = FocalLoss(gamma=0.7, weights=weights).to(device)
     criterion = nn.CrossEntropyLoss(weight=weights).to(device)
 
     root_dir = args.data or args.data_dir
@@ -291,7 +292,8 @@ def validate(args):
     top1 = AverageMeter()
     top5 = AverageMeter()
 
-    conf_mat = [[0,0,0],[0,0,0],[0,0,0]]
+    conf_mat = [[0, 0, 0], [0, 0, 0], [0, 0, 0]]
+    cls_map = {0: 'Commercial', 1: 'HoA', 2: 'Residential'}
     y_true_all = []
     y_pred_all = []
 
@@ -331,16 +333,15 @@ def validate(args):
             top5.update(acc5.item(), input.size(0))
 
             # calculate conf_mat
-            y_pred = np.argmax(output.detach().cpu(),axis=1)
+            y_pred = np.argmax(output.detach().cpu(), axis=1)
             y_true = target.detach().cpu()
 
             # conf_mat+=confusion_matrix(y_pred, y_true, labels=[0,1,2])
 
             # store all target and output
-            y_true_all+=list(y_true)
-            y_pred_all+=list(y_pred)
+            y_true_all += list(y_true)
+            y_pred_all += list(y_pred)
 
-            
             # exit()
 
             # measure elapsed time
@@ -362,9 +363,9 @@ def validate(args):
     _logger.info('Prediction List \n'
                  '{y_pred_all}'
                  ''.format(
-        y_pred_all = y_pred_all
+        y_pred_all=[cls_map[int(i)] for i in np.array(y_pred_all.detach().cpu())]
     )
-                 )
+    )
     if real_labels is not None:
         # real labels mode replaces topk values at the end
         top1a, top5a = real_labels.get_accuracy(k=1), real_labels.get_accuracy(k=5)
@@ -424,7 +425,8 @@ def main():
         if args.model == 'all':
             # validate all models in a list of names with pretrained checkpoints
             args.pretrained = True
-            model_names = list_models('convnext*', pretrained=True, exclude_filters=['*_in21k', '*_in22k', '*in12k', '*_dino', '*fcmae'])
+            model_names = list_models('convnext*', pretrained=True,
+                                      exclude_filters=['*_in21k', '*_in22k', '*in12k', '*_dino', '*fcmae'])
             model_cfgs = [(n, '') for n in model_names]
         elif not is_model(args.model):
             # model name doesn't exist, try as wildcard filter
@@ -463,7 +465,7 @@ def main():
         write_results(args.results_file, results, format=args.results_format)
 
     # output results in JSON to stdout w/ delimiter for runner script
-    print(f'--result\n{json.dumps(results, indent=4)}')
+    # print(f'--result\n{json.dumps(results, indent=4)}')
 
 
 def write_results(results_file, results, format='csv'):
@@ -480,7 +482,6 @@ def write_results(results_file, results, format='csv'):
             for r in results:
                 dw.writerow(r)
             cf.flush()
-
 
 
 if __name__ == '__main__':
