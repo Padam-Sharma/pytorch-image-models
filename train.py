@@ -684,7 +684,11 @@ def main():
             train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
     else:
         train_loss_fn = nn.CrossEntropyLoss()
+<<<<<<< Updated upstream
     weights = torch.FloatTensor([0.5796078431372549, 1.2174629324546953, 2.2059701492537314]).to(device)
+=======
+    weights = torch.FloatTensor([0.545982905982906, 1.2322530864197532, 2.8017543859649123]).to(device)
+>>>>>>> Stashed changes
     train_loss_fn = nn.CrossEntropyLoss(weight=weights)
     train_loss_fn = train_loss_fn.to(device=device)
     validate_loss_fn = nn.CrossEntropyLoss(weight=weights).to(device=device)
