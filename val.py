@@ -334,7 +334,7 @@ def validate(args):
             y_pred = np.argmax(output.detach().cpu(),axis=1)
             y_true = target.detach().cpu()
 
-            conf_mat+=confusion_matrix(y_pred, y_true, labels=[0,1,2])
+            # conf_mat+=confusion_matrix(y_pred, y_true, labels=[0,1,2])
 
             # store all target and output
             y_true_all+=list(y_true)
@@ -351,20 +351,12 @@ def validate(args):
                 _logger.info(
                     'Test: [{0:>4d}/{1}]  '
                     'Time: {batch_time.val:.3f}s ({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  '
-                    'Loss: {loss.val:>7.4f} ({loss.avg:>6.4f})  '
-                    '\nConf Mat:\n {conf_mat}\n'
-                    'classification report \n {cls_rep}'
-                    'Acc@1: {top1.val:>7.3f} ({top1.avg:>7.3f})  '
-                    'Acc@5: {top5.val:>7.3f} ({top5.avg:>7.3f})  '.format(
+                    'Prediction list \n {y_pred_all}'.format(
                         batch_idx,
                         len(loader),
                         batch_time=batch_time,
                         rate_avg=input.size(0) / batch_time.avg,
-                        loss=losses,
-                        conf_mat=conf_mat,
-                        cls_rep=classification_report(y_true_all, y_pred_all, labels=[0,1,2]),
-                        top1=top1,
-                        top5=top5
+                        y_pred_all=y_pred_all,
                     )
                 )
 
