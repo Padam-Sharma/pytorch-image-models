@@ -349,8 +349,8 @@ def validate(args):
 
             if batch_idx % args.log_freq == 0:
                 _logger.info(
-                    'Test: [{0:>4d}/{1}]  '
-                    'Time: {batch_time.val:.3f}s ({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  '
+                    'Test: [{0:>4d}/{1}]  \n'
+                    'Time: {batch_time.val:.3f}s ({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  \n'
                     'Prediction list \n {y_pred_all}'.format(
                         batch_idx,
                         len(loader),
