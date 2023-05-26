@@ -347,19 +347,24 @@ def validate(args):
             batch_time.update(time.time() - end)
             end = time.time()
 
-            if batch_idx % args.log_freq == 0:
-                _logger.info(
-                    'Test: [{0:>4d}/{1}]  \n'
-                    'Time: {batch_time.val:.3f}s ({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  \n'
-                    'Prediction list \n {y_pred_all}'.format(
-                        batch_idx,
-                        len(loader),
-                        batch_time=batch_time,
-                        rate_avg=input.size(0) / batch_time.avg,
-                        y_pred_all=y_pred_all,
-                    )
-                )
-
+            # if batch_idx % args.log_freq == 0:
+            #     _logger.info(
+            #         'Test: [{0:>4d}/{1}]  \n'
+            #         'Time: {batch_time.val:.3f}s ({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  \n'
+            #         'Prediction list \n {y_pred_all}'.format(
+            #             batch_idx,
+            #             len(loader),
+            #             batch_time=batch_time,
+            #             rate_avg=input.size(0) / batch_time.avg,
+            #             y_pred_all=y_pred_all,
+            #         )
+            #     )
+    _logger.info('Prediction List \n'
+                 '{y_pred_all}'
+                 ''.format(
+        y_pred_all = y_pred_all
+    )
+                 )
     if real_labels is not None:
         # real labels mode replaces topk values at the end
         top1a, top5a = real_labels.get_accuracy(k=1), real_labels.get_accuracy(k=5)
@@ -375,8 +380,8 @@ def validate(args):
         interpolation=data_config['interpolation'],
     )
 
-    _logger.info(' * Acc@1 {:.3f} ({:.3f}) Acc@5 {:.3f} ({:.3f})'.format(
-       results['top1'], results['top1_err'], results['top5'], results['top5_err']))
+    # _logger.info(' * Acc@1 {:.3f} ({:.3f}) Acc@5 {:.3f} ({:.3f})'.format(
+    #    results['top1'], results['top1_err'], results['top5'], results['top5_err']))
 
     return results
 
