@@ -363,7 +363,7 @@ def validate(args):
     _logger.info('Prediction List \n'
                  '{y_pred_all}'
                  ''.format(
-        y_pred_all=[i +' - '+cls_map[int(j)]+'\n' for i,j in zip(sorted(glob.glob(root_dir)),y_pred_all)],
+        y_pred_all=[i +' - '+cls_map[int(j)]+'\n' for i,j in zip(sorted(glob.glob(root_dir+'/*')),y_pred_all)],
     )
     )
     if real_labels is not None:
